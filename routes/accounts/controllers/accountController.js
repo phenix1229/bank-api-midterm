@@ -14,8 +14,7 @@ module.exports = {
     //render options page
     options: (req, res) => {
         if(req.isAuthenticated()){
-            const id = req.user._id;
-            utils.getBalances(id);
+            utils.getBalances(req.user._id);
             return res.render('auth/options', {cBalance, sBalance, user:req.user.profile.name});
         } else {
             return res.redirect('/fail');
@@ -66,6 +65,7 @@ module.exports = {
                         newTrans.newBalance = acct.balance;
                         newTrans.save()
                         .then(() => {
+                            utils.getBalances(id);
                             return res.redirect('/auth/creditDebit');
                         })
                         .catch(err => {
@@ -96,6 +96,7 @@ module.exports = {
                         newTrans.newBalance = acct.balance;
                         newTrans.save()
                     .then(() => {
+                        utils.getBalances(id);
                         return res.redirect('/auth/creditDebit');
                     })
                     .catch(err => {
