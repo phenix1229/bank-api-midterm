@@ -95,7 +95,7 @@ const getBalances = (id) => {
     if(sAcct.balance !== null && sAcct.balance > 0){
         sBalance = sAcct.balance;
     }
-    return {cBalance, sBalance};
+    return cBalance;
 };
 
 //post new transaction
