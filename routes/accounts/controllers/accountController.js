@@ -15,7 +15,7 @@ module.exports = {
     options: (req, res) => {
         if(req.isAuthenticated()){
             utils.getBalances(req.user._id);
-            console.log(cbalance);
+            console.log(`cBalance = ${cbalance}`);
             return res.render('auth/options', {cBalance, sBalance, user:req.user.profile.name});
         } else {
             return res.redirect('/fail');
