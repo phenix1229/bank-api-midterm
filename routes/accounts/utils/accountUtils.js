@@ -84,18 +84,18 @@ const adjAmount = (dollarAmount) => {
 };
 
 //get account balances
-const getBalances = (id) => {
+const getBalances = async (id) => {
     let cBalance = 0;
     let sBalance = 0;
-    const cAcct = Checking.findOne({owner:id});
-    const sAcct = Savings.findOne({owner:id});
+    const cAcct = await Checking.findOne({owner:id})
+    const sAcct = await Savings.findOne({owner:id});
     if(cAcct.balance !== null && cAcct.balance > 0){
-            cBalance = cAcct.balance;
+        cBalance = cAcct.balance;
     }
     if(sAcct.balance !== null && sAcct.balance > 0){
         sBalance = sAcct.balance;
     }
-    return cBalance;
+    return {"cBalance":cBalance, "sBalance":sBalance};
 };
 
 //post new transaction

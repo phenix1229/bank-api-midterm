@@ -12,43 +12,45 @@ const utils = require('../utils/accountUtils');
 module.exports = {
 
     //render options page
-    options: (req, res) => {
+    options: async (req, res) => {
         if(req.isAuthenticated()){
-            utils.getBalances(req.user._id);
-            return res.render('auth/options', {cBalance, sBalance, user:req.user.profile.name});
+            const balances = await utils.getBalances(req.user._id);
+            return res.render('auth/options', {cBalance:balances.cBalance, sBalance:balances.sBalance, user:req.user.profile.name});
         } else {
             return res.redirect('/fail');
         };
     },
 
     //render credit and debit page
-    creditDebitPage: (req, res) => {
+    creditDebitPage: async (req, res) => {
         if(req.isAuthenticated()){
-            const id = req.user._id;
-            utils.getBalances(id);
-            return res.render('auth/creditDebit', {cBalance, sBalance, user:req.user.profile.name, error:null});
+            const balances = await utils.getBalances(req.user._id);
+            return res.render('auth/creditDebit', {cBalance:balances.cBalance, sBalance:balances.sBalance, user:req.user.profile.name, error:null});
         } else {
             return res.redirect('/fail');
         };
     },
 
     //post transaction to account
-    transaction: (req, res, next) => {
+    transaction: async (req, res, next) => {
         const {dollarAmount, description, debtOrCred, acctChoice, } = req.body;
         const id = req.user._id;
         const adjDolAmt = utils.adjAmount(dollarAmount);
         if(utils.checkForNumbers(dollarAmount)){
-            return res.render('auth/creditDebit', {cBalance, sBalance, user:req.user.profile.name, error:'Please enter dollar amount as a number. Example: 100.00'});
+            const balances = await utils.getBalances(id);
+            return res.render('auth/creditDebit', {cBalance:balances.cBalance, sBalance:balances.sBalance, user:req.user.profile.name, error:'Please enter dollar amount as a number. Example: 100.00'});
         }
         if(!description){
-            return res.render('auth/creditDebit', {cBalance, sBalance, user:req.user.profile.name, error:'Please enter a description of transaction for records.'});
+            const balances = await utils.getBalances(id);
+            return res.render('auth/creditDebit', {cBalance:balances.cBalance, sBalance:balances.sBalance, user:req.user.profile.name, error:'Please enter a description of transaction for records.'});
         }
         if(acctChoice === 'checking'){
             Checking.findOne({owner:id})
-                .then((acct) => {
+                .then(async (acct) => {
                     if(debtOrCred === 'withdrawal'){
                         if(Number(acct.balance) - Number(adjDolAmt) < 0){
-                            return res.render('auth/creditDebit', {cBalance, sBalance, user:req.user.profile.name, error:'Cannot complete transaction. Not enough funds.'});
+                            const balances = await utils.getBalances(id);
+                            return res.render('auth/creditDebit', {cBalance:balances.cBalance, sBalance:balances.sBalance, user:req.user.profile.name, error:'Cannot complete transaction. Not enough funds.'});
                         } else {
                             acct.balance = (Number(acct.balance) - Number(adjDolAmt)).toFixed(2);
                         };
@@ -65,7 +67,6 @@ module.exports = {
                         newTrans.newBalance = acct.balance;
                         newTrans.save()
                         .then(() => {
-                            utils.getBalances(id);
                             return res.redirect('/auth/creditDebit');
                         })
                         .catch(err => {
@@ -74,12 +75,12 @@ module.exports = {
                     })
             })
         } else if (acctChoice === 'savings'){
-            const id = req.user._id;
             Savings.findOne({owner:id})
-                .then((acct) => {
+                .then(async (acct) => {
                     if(debtOrCred === 'withdrawal'){
                         if(Number(acct.balance) - Number(adjDolAmt) < 0){
-                            return res.render('auth/creditDebit', {cBalance, sBalance, user:req.user.profile.name, error:'Cannot complete transaction. Not enough funds.'});
+                            const balances = await utils.getBalances(id);
+                            return res.render('auth/creditDebit', {cBalance:balances.cBalance, sBalance:balances.sBalance, user:req.user.profile.name, error:'Cannot complete transaction. Not enough funds.'});
                         } else {
                             acct.balance = (Number(acct.balance) - Number(adjDolAmt)).toFixed(2);
                         };
@@ -96,7 +97,6 @@ module.exports = {
                         newTrans.newBalance = acct.balance;
                         newTrans.save()
                     .then(() => {
-                        utils.getBalances(id);
                         return res.redirect('/auth/creditDebit');
                     })
                     .catch(err => {
@@ -108,30 +108,32 @@ module.exports = {
     },
     
     //render transfer page
-    transferPage: (req, res) => {
+    transferPage: async (req, res) => {
         if(req.isAuthenticated()){
             const id = req.user._id;
-            utils.getBalances(id);
-            return res.render('auth/transfer', {cBalance, sBalance, user:req.user.profile.name, error:null})
+            const balances = await utils.getBalances(id);
+            return res.render('auth/transfer', {cBalance:balances.cBalance, sBalance:balances.sBalance, user:req.user.profile.name, error:null})
         }else {
             return res.redirect('/fail');
         };
     },
 
     //post transfers between checking/savings accounts
-    transfer: (req, res, next) => {
+    transfer: async (req, res, next) => {
         const {transAmount, transFrom, transTo} = req.body;
+        const id = req.user._id;
         const adjAmount = utils.adjAmount(transAmount);
         if(utils.checkForNumbers(transAmount)){
-            return res.render('auth/transfer', {cBalance, sBalance, user:req.user.profile.name, error:'Please enter transfer amount as a number. Example: 100.00'})
+            const balances = await utils.getBalances(id);
+            return res.render('auth/transfer', {cBalance:balances.cBalance, sBalance:balances.sBalance, user:req.user.profile.name, error:'Please enter transfer amount as a number. Example: 100.00'})
         }
         if(transFrom === 'checking'){
-            const id = req.user._id;
             Checking.findOne({owner:id})
-                .then((acct) => {
+                .then(async (acct) => {
                     if(transTo === 'savings'){
                             if(Number(acct.balance) - Number(adjAmount) < 0){
-                                return res.render('auth/transfer', {cBalance, sBalance, user:req.user.profile.name, error:'Cannot complete transaction. Not enough funds.'});
+                                const balances = await utils.getBalances(id);
+                                return res.render('auth/transfer', {cBalance:balances.cBalance, sBalance:balances.sBalance, user:req.user.profile.name, error:'Cannot complete transaction. Not enough funds.'});
                             } else {
                                 acct.balance = (Number(acct.balance) - Number(adjAmount)).toFixed(2);
                             };
@@ -159,7 +161,6 @@ module.exports = {
                             newTrans.newBalance = acct.balance;
                             newTrans.save()
                             .then(() => {
-                                utils.getBalances(id);
                                 return res.redirect('/auth/transfer');
                             })
                             .catch(err => {
@@ -172,12 +173,12 @@ module.exports = {
                     
                 })
         } else if(transFrom === 'savings'){
-            const id = req.user._id;
             Savings.findOne({owner:id})
-            .then((acct) => {
+            .then(async (acct) => {
                 if(transTo === 'checking'){
                     if(Number(acct.balance) - Number(adjAmount) < 0){
-                        return res.render('auth/transfer', {cBalance, sBalance, user:req.user.profile.name, error:'Cannot complete transaction. Not enough funds.'})
+                        const balances = await utils.getBalances(id);
+                        return res.render('auth/transfer', {cBalance:balances.cBalance, sBalance:balances.sBalance, user:req.user.profile.name, error:'Cannot complete transaction. Not enough funds.'})
                     } else {
                         acct.balance = (Number(acct.balance) - Number(adjAmount)).toFixed(2);
                     };
@@ -205,7 +206,6 @@ module.exports = {
                         newTrans.newBalance = acct.balance;
                         newTrans.save()
                         .then(() => {
-                            utils.getBalances(id);
                             return res.redirect('/auth/transfer');
                         })
                         .catch(err => {
@@ -227,10 +227,10 @@ module.exports = {
             Checking.findOne({owner: id})
             .then(acct => {
                 CheckingTrans.find({owner: acct._id})
-                .then(transactions => {
+                .then(async (transactions) => {
                     const cTransactions = transactions;
-                    utils.getBalances(id);
-                    return res.render('auth/checking', {cTransactions, cBalance, sBalance, user:req.user.profile.name})
+                    const balances = await utils.getBalances(id);
+                    return res.render('auth/checking', {cTransactions, cBalance:balances.cBalance, sBalance:balances.sBalance, user:req.user.profile.name})
                 })
             })
                 .catch(err => {
@@ -248,10 +248,10 @@ module.exports = {
             Savings.findOne({owner: id})
             .then(acct => {
                 SavingsTrans.find({owner: acct._id})
-                .then(transactions => {
+                .then(async (transactions) => {
                     const sTransactions = transactions;
-                    utils.getBalances(id);
-                    return res.render('auth/savings', {sTransactions, cBalance, sBalance, user:req.user.profile.name})
+                    const balances = await utils.getBalances(id);
+                    return res.render('auth/savings', {sTransactions, cBalance:balances.cBalance, sBalance:balances.sBalance, user:req.user.profile.name})
                 })
             })
             .catch(err => {
@@ -263,38 +263,42 @@ module.exports = {
     },
 
     //render send money page
-    sendMoneyPage: (req, res) => {
+    sendMoneyPage: async (req, res) => {
         if(req.isAuthenticated()){
-            const id = req.user._id;
-            utils.getBalances(id);
-            return res.render('auth/sendMoney', {cBalance, sBalance, user:req.user.profile.name, error:null})
+            const balances = await utils.getBalances(req.user._id);
+            return res.render('auth/sendMoney', {cBalance:balances.cBalance, sBalance:balances.sBalance, user:req.user.profile.name, error:null})
         }else {
             return res.redirect('/fail');
         };
     },
 
     //post send transaction to account
-    sendMoney: (req, res, next) => {
+    sendMoney: async (req, res, next) => {
         const {dollarAmount, sendTo, sendFrom, } = req.body;
+        const id = req.user._id;
         const adjAmount = utils.adjAmount(dollarAmount);
         if(utils.checkForNumbers(dollarAmount)){
-            return res.render('auth/sendMoney', {cBalance, sBalance, user:req.user.profile.name, error:'Please enter dollar amount as a number. Example: 100.00'})
+            const balances = await utils.getBalances(id);
+            return res.render('auth/sendMoney', {cBalance:balances.cBalance, sBalance:balances.sBalance, user:req.user.profile.name, error:'Please enter dollar amount as a number. Example: 100.00'})
         }
         if(!sendTo.includes('@') || !sendTo.includes('.')){
-            return res.render('auth/sendMoney', {cBalance, sBalance, user:req.user.profile.name, error:'Please enter send to as a valid email. Example: me@me.com'})
+            const balances = await utils.getBalances(id);
+            return res.render('auth/sendMoney', {cBalance:balances.cBalance, sBalance:balances.sBalance, user:req.user.profile.name, error:'Please enter send to as a valid email. Example: me@me.com'})
         }
         User.findOne({email:sendTo})
-        .then(user => {
+        .then(async (user) => {
             if(!user){
-            return res.render('auth/sendMoney', {cBalance, sBalance, user:req.user.profile.name, error: 'The person you are trying to send to is not in the system.'})
+                const balances = await utils.getBalances(id);
+                return res.render('auth/sendMoney', {cBalance:balances.cBalance, sBalance:balances.sBalance, user:req.user.profile.name, error: 'The person you are trying to send to is not in the system.'})
         } else {
         if(sendFrom === 'checking'){
             const id = req.user._id;
             Checking.findOne({owner:id})
-                .then((acct) => {
+                .then(async (acct) => {
                     if(sendTo){
                         if(Number(acct.balance) - Number(adjAmount) < 0){
-                            return res.render('auth/sendMoney', {cBalance, sBalance, user:req.user.profile.name, error:'Cannot complete transaction. Not enough funds.'});
+                            const balances = await utils.getBalances(id);
+                            return res.render('auth/sendMoney', {cBalance:balances.cBalance, sBalance:balances.sBalance, user:req.user.profile.name, error:'Cannot complete transaction. Not enough funds.'});
                         } else {
                             acct.balance = (Number(acct.balance) - Number(adjAmount)).toFixed(2);
                         };
@@ -340,10 +344,11 @@ module.exports = {
         } else if (sendFrom === 'savings'){
             const id = req.user._id;
             Savings.findOne({owner:id})
-                .then((acct) => {
+                .then(async (acct) => {
                     if(sendTo){
                         if(Number(acct.balance) - Number(adjAmount) < 0){
-                            return res.render('auth/sendMoney', {cBalance, sBalance, user:req.user.profile.name, error:'Cannot complete transaction. Not enough funds.'});
+                            const balances = await utils.getBalances(id);
+                            return res.render('auth/sendMoney', {cBalance:balances.cBalance, sBalance:balances.sBalance, user:req.user.profile.name, error:'Cannot complete transaction. Not enough funds.'});
                         } else {
                             acct.balance = (Number(acct.balance) - Number(adjAmount)).toFixed(2);
                         };
